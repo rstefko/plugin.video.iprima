@@ -124,10 +124,27 @@ def login(email, password, device_id):
 		'_password': password,
 		'_csrf_token': csrf_token
 	}, cookies=cookies)
-	helpers.log('Auth check URL: ' + do_login.url)
+
+	# Select profile
+	profile_select = s.get('https://auth.iprima.cz/user/profile-select', cookies=cookies)
+	profile_select_page_content = profile_select.text
+	helpers.log('Profile select URL: ' + profile_select.url)
+
+	# Profile select
+	r_auth_code_url = re.search('id="profile-selector".*data-continue-url="(.*)"', profile_select_page_content)
+	auth_code_url = ''
+	if r_auth_code_url:
+		auth_code_url = 'https://auth.iprima.cz' + r_auth_code_url.group(1)
+		helpers.log('Auth Code URL: ' + auth_code_url)
+	else:
+		helpers.displayMessage('Nepodařilo se získat Auth Code URL', 'ERROR')
+		sys.exit(1)
+
+	auth_code_page = s.get(auth_code_url, cookies=cookies)
+	helpers.log('Auth check URL: ' + auth_code_page.url)
 
 	# Acquire authorization code from login result
-	parsed_auth_url = urlparse(do_login.url)
+	parsed_auth_url = urlparse(auth_code_page.url)
 	try:
 		auth_code = parse_qs(parsed_auth_url.query)['code'][0]
 	except KeyError:
